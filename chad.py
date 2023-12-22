@@ -92,7 +92,7 @@ class ChatInterface:
         0].delta.content is None
 
   def _normalize_text(self, content):
-    return content.replace('\r\n', '\n').replace('\r', '\n')
+    return content.replace('\r', '')
 
   def _update_buffer_lines(self, buffer, line_num, lines):
     if buffer[line_num].startswith("### "):
