@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+import json
+import os
+import signal
+from openai import OpenAI
+# pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false
+
+"""
+chad.py interface a vim buffer with an openai chat completion stream
+"""
+
+class InterruptedError(Exception):
+  pass
+
+
+def signal_handler(_, __):
+  raise InterruptedError()
+
+
+signal.signal(signal.SIGINT, signal_handler)
+
+
+class ChatInterface:
+
+  def __init__(self, vim):
+    self.vim = vim
+    self.client = None
+
+  def setup_client(self, api_key, model):
+    self.client = OpenAI(api_key=api_key)
+    self.model = model
+
+  def fetch_response(self, messages, options):
+    if not self.client:
+      raise ValueError("client is not set up.")
+
+    assert hasattr(self.client, 'chat'), "client does not have a 'chat' attr"
+
+    params = {
+        "model": self.model,
+        "messages": messages,
+        "stream": options.get('stream', True),
+        "temperature": float(options.get('temperature', 1)),
+        "presence_penalty": float(options.get('presence_penalty', 0)),
+        "frequency_penalty": float(options.get('frequency_penalty', 0)),
+    }
+    return self.client.chat.completions.create(**params)
+
+  def parse_buffer(self, buffer_content):
+    messages, role, content = [], None, []
+    for line in buffer_content.splitlines():
+      if line.startswith("### "):
+        if role:
+          messages.append({"role": role, "content": "\n".join(content).strip()})
+        role, content = line[4:].lower(), []
+      else:
+        content.append(line)
+    if role:
+      messages.append({"role": role, "content": "\n".join(content).strip()})
+    return messages
+
+  def update_buffer(self, stream):
+    buffer = self.vim.current.buffer
+    line_num = len(buffer) - 1
+
+    for chunk in stream:
+      if chunk.choices[0].delta is None or chunk.choices[
+          0].delta.content is None:
+        continue
+      text = chunk.choices[0].delta.content.replace('\r\n',
+                                                    '\n').replace('\r', '\n')
+      lines = text.split('\n')
+      if buffer[line_num].startswith("### "):
+        line_num += 1
+        buffer[line_num:line_num] = lines
+      else:
+        buffer[line_num] += lines[0]
+        if len(lines) > 1:
+          buffer[line_num + 1:line_num + 1] = lines[1:]
+      line_num += len(lines) - 1
+      self.vim.command("redraw")
+      self.vim.command("normal G")
+
+  def run(self, openai_options):
+    self.setup_client(openai_options['api_key'], openai_options['model'])
+    buffer_content = self.vim.eval('join(getline(1, "$"), "\n")')
+    messages = self.parse_buffer(buffer_content)
+    try:
+      response = self.fetch_response(messages, openai_options)
+      self.vim.command('call append("$", "### assistant")')
+      self.update_buffer(response)
+    except (InterruptedError, KeyboardInterrupt):
+      self.vim.command('echo "Chad cancelled"')
+    except Exception as e:
+      error_message = str(e)
+      self.vim.command(f'call append("$", "Error: {error_message}")')
+    finally:
+      self.vim.command('call append("$", "### user")\nnormal G')
+
+
+def main():
+  api_key = os.getenv('CHAD')
+  if not api_key:
+    raise ValueError("please export CHAD=api_key_here")
+
+  openai_options = json.loads(vim.eval('g:openai_options'))
+  chat_interface = ChatInterface(vim)
+  chat_interface.run(openai_options)
+
+
+if __name__ == '__main__':
+  main()

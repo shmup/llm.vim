@@ -1,17 +1,17 @@
 vim9script
 
 var plugin_root: string = expand('<sfile>:p:h:h')
-var chat_py: string = plugin_root .. "/chat.py"
+var chad_py: string = plugin_root .. "/chad.py"
 
 def LoadPluginOptions(): dict<string>
   var options: dict<string> = {
     'api_key': getenv('CHAD'),
-    'model': string('gpt-4-1106-preview'),
-    'temperature': string(0.7),
-    'max_tokens': string(150),
-    'presence_penalty': string(0),
-    'frequency_penalty': string(0),
-    'cache_path': getenv('HOME') .. '/.vim/cache/'
+    'model': "gpt-4-1106-preview",
+    'temperature': string(0.7)->json_encode()->eval(),
+    'max_tokens': string(150)->json_encode()->eval(),
+    'presence_penalty': string(0)->json_encode()->eval(),
+    'frequency_penalty': string(0)->json_encode()->eval(),
+    'cache_path': string(getenv('HOME') .. '/.vim/cache/')->json_encode()->eval()
   }
   return options
 enddef
@@ -46,7 +46,7 @@ def Chad(): void
   var options_json: string = json_encode(openai_options)
   # Directly pass the options JSON string to the Python variable
   g:openai_options = options_json  # Set the global variable in Vim9 script
-  exe 'py3file ' .. chat_py
+  exe 'py3file ' .. chad_py
 enddef
 
 def SaveChadToFile(filename: string): void
