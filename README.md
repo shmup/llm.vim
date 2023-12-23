@@ -1,5 +1,6 @@
 ### OVERRIDE THE DEFAULTS
 
+    let g:chad_seed = "You are a helpful AI assistant."
     let g:chad_options = {
         \ 'api_key': $YOUR_EXPORTED_API_KEY,
         \ 'model': "gpt-4-1106-preview",

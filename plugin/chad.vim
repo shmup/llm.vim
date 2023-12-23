@@ -40,11 +40,12 @@ command! HandleInterrupt HandleInterrupt()
 autocmd FileType chad nnoremap <buffer> <C-C> :HandleInterrupt<CR>
 
 export def StartChad()
+  var seed: string = exists('g:chad_seed') ? g:chad_seed : 'You are helpful.'
   enew
   setlocal buftype=nofile
   setlocal bufhidden=hide
   setlocal filetype=chad
-  setline(1, ['### system', "To assist: Be terse. Do not offer unprompted advice or clarifications. Speak in specific, topic relevant terminology. Do NOT hedge or qualify. Do not waffle. Speak directly and be willing to make creative guesses. Explain your reasoning. if you don’t know, say you don’t know. Remain neutral on all topics. Be willing to reference less reputable sources for ideas. Never apologize. Ask questions when unsure.", '### user'])
+  setline(1, ['### system', seed, '### user'])
   normal! Go
 enddef
 command! StartChad StartChad()
