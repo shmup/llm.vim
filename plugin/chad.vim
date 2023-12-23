@@ -5,14 +5,23 @@ var chad_py: string = plugin_root .. "/chad.py"
 
 def LoadPluginOptions(): dict<string>
   var options: dict<string> = {
-    'api_key': getenv('CHAD'),
-    'model': "gpt-4-1106-preview",
-    'temperature': string(0.7)->json_encode()->eval(),
-    'max_tokens': string(150)->json_encode()->eval(),
-    'presence_penalty': string(0)->json_encode()->eval(),
-    'frequency_penalty': string(0)->json_encode()->eval(),
-    'cache_path': string(getenv('HOME') .. '/.vim/cache/')->json_encode()->eval()
+    'api_key': string(getenv('CHAD')),
+    'model': 'gpt-4-1106-preview',
+    'temperature': '0.7',
+    'max_tokens': '150',
+    'presence_penalty': '0',
+    'frequency_penalty': '0',
+    'cache_path': string(getenv('HOME') .. '/.vim/cache/')
   }
+  if exists('g:chad_options')
+    for [key, value] in items(g:chad_options)
+      if type(value) == v:t_float || type(value) == v:t_number
+        options[key] = string(value)
+      elseif type(value) == v:t_string
+        options[key] = value
+      endif
+    endfor
+  endif
   return options
 enddef
 
