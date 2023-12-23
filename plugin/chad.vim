@@ -10,8 +10,7 @@ def LoadPluginOptions(): dict<string>
     'temperature': '0.7',
     'max_tokens': '150',
     'presence_penalty': '0',
-    'frequency_penalty': '0',
-    'cache_path': string(getenv('HOME') .. '/.vim/cache/')
+    'frequency_penalty': '0'
   }
   if exists('g:chad_options')
     for [key, value] in items(g:chad_options)
