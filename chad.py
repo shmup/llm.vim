@@ -22,11 +22,8 @@ signal.signal(signal.SIGINT, signal_handler)
 
 class ChatInterface:
 
-  def __init__(self, vim):
+  def __init__(self, vim, api_key, model):
     self.vim = vim
-    self.client = None
-
-  def setup_client(self, api_key, model):
     self.client = OpenAI(api_key=api_key)
     self.model = model
 
@@ -60,7 +57,6 @@ class ChatInterface:
     return messages
 
   def run(self, openai_options):
-    self.setup_client(openai_options['api_key'], openai_options['model'])
     buffer_content = self.vim.eval('join(getline(1, "$"), "\n")')
     messages = self.parse_buffer(buffer_content)
     try:
@@ -115,7 +111,8 @@ def main():
     raise ValueError("please export CHAD=api_key_here")
 
   openai_options = json.loads(vim.eval('g:openai_options'))
-  chat_interface = ChatInterface(vim)
+  chat_interface = ChatInterface(vim, openai_options['api_key'],
+                                 openai_options['model'])
   chat_interface.run(openai_options)
 
 
