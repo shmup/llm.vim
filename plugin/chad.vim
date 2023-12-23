@@ -7,10 +7,11 @@ def LoadPluginOptions(): dict<string>
   var options: dict<string> = {
     'api_key': string(getenv('CHAD')),
     'model': 'gpt-4-1106-preview',
-    'temperature': '0.7',
+    'temperature': '0.3',
+    'top_p': '0.5',
     'max_tokens': '150',
-    'presence_penalty': '0',
-    'frequency_penalty': '0'
+    'presence_penalty': '0.1',
+    'frequency_penalty': '0.6'
   }
   if exists('g:chad_options')
     for [key, value] in items(g:chad_options)
