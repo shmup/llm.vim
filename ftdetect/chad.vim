@@ -1,1 +1,1 @@
-setfiletype markdown.chad
+autocmd BufRead,BufNewFile *.chad setfiletype markdown.chad
