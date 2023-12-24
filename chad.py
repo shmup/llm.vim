@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
+# ==============================================================================
+# buffer interaction with openai chat completion
+# file:     chad.py
+# author:   shmup <https://github.com/shmup>
+# website:  https://github.com/shmup/chad.vim
+# updated:  dec-24-2023
+# license:  :h license
+# ==============================================================================
+
 import json
 import os
 import signal
 from openai import OpenAI
+
 # pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false
-"""
-chad.py interface a vim buffer with an openai chat completion stream
-"""
 
 
 class InterruptedError(Exception):

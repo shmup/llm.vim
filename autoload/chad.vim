@@ -1,4 +1,12 @@
 vim9script
+# ==============================================================================
+# buffer interaction with openai chat completion
+# file:     autoload/chad.vim
+# author:   shmup <https://github.com/shmup>
+# website:  https://github.com/shmup/chad.vim
+# updated:  dec-24-2023
+# license:  :h license
+# ==============================================================================
 
 var plugin_root: string = expand('<sfile>:p:h:h')
 var chad_py: string = plugin_root .. "/chad.py"
