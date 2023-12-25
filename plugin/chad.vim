@@ -8,11 +8,6 @@ vim9script
 # license:  :h license
 # ==============================================================================
 
-if get(g:, 'loaded_chad')
-  finish
-endif
-g:loaded_chad = 1
-
 import autoload '../autoload/chad.vim'
 
 command ToggleChad chad.ToggleChad()
