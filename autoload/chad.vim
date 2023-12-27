@@ -34,7 +34,8 @@ def LoadPluginOptions(): dict<string>
 enddef
 
 export def ToggleChad()
-  if &filetype == 'chad'
+  var filetypes = split(&filetype, '\.')
+  if index(filetypes, 'chad') >= 0
     Chad()
   else
     StartChad()
