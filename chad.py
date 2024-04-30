@@ -15,6 +15,10 @@ from openai import OpenAI
 
 # pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false
 
+roles = ["system", "user", "assistant"]
+
+def is_role(line):
+  return line.startswith("### ") and line[4:] in roles
 
 class InterruptedError(Exception):
   pass
@@ -53,7 +57,7 @@ class ChatInterface:
   def parse_buffer(self, buffer_content):
     messages, role, content = [], None, []
     for line in buffer_content.splitlines():
-      if line.startswith("### "):
+      if is_role(line):
         if role:
           messages.append({"role": role, "content": "\n".join(content).strip()})
         role, content = line[4:].lower(), []
@@ -98,7 +102,7 @@ class ChatInterface:
     return content.replace('\r', '')
 
   def _update_buffer_lines(self, buffer, line_num, lines):
-    if buffer[line_num].startswith("### "):
+    if is_role(buffer[line_num]):
       line_num += 1
       buffer[line_num:line_num] = lines
     else:

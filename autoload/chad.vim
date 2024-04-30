@@ -47,7 +47,7 @@ export def StartChad()
   enew
   setlocal buftype=nofile
   setlocal bufhidden=hide
-  setlocal filetype=chad
+  setlocal filetype=markdown.chad
   setline(1, ['### system', seed, '### user'])
   normal! Go
 enddef
