@@ -1,94 +1,79 @@
 #!/usr/bin/env python3
-# ==============================================================================
-# buffer interaction with llm
-# file:     llm.py
-# author:   shmup <https://github.com/shmup>
-# website:  https://github.com/shmup/llm.vim
-# updated:  dec-24-2023
-# license:  :h license
-# ==============================================================================
 # pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false
 
-import json
 import signal
+from typing import List, Dict
+
 import llm
 
 
-class InterruptedError(Exception):
-    pass
+class LlmInterface:
 
-
-def signal_handler(_, __):
-    raise InterruptedError()
-
-
-signal.signal(signal.SIGINT, signal_handler)
-
-
-class ChatInterface:
-
-    def __init__(self, vim, model_name):
+    def __init__(self, vim, model_name: str):
         self.vim = vim
         self.model = llm.get_model(model_name)
         self.conversation = self.model.conversation()
+        signal.signal(signal.SIGINT, self._handle_interrupt)
 
-    def run(self):
-        buffer_content = self.vim.eval('join(getline(1, "$"), "\n")')
-        messages = self.parse_buffer(buffer_content)
+    def _handle_interrupt(self, *_):
+        self.vim.command('echo "Llm cancelled"')
+        raise KeyboardInterrupt
+
+    def process_buffer(self) -> None:
         try:
-            response = self.fetch_response(messages)
-            self.vim.command('call append(line("$"), "### assistant")')
-            self.update_buffer(response)
-        except (InterruptedError, KeyboardInterrupt):
-            self.vim.command('echo "Llm cancelled"')
+            content = self.vim.eval('join(getline(1, "$"), "\n")')
+            messages = self._parse_messages(content)
+            response = self._get_response(messages)
+            self._update_buffer(response)
+        except KeyboardInterrupt:
+            pass
         except Exception as e:
-            error_message = str(e)
-            self.vim.command(f'call append("$", "Error: {error_message}")')
+            self._append_error(str(e))
         finally:
-            self.vim.command('call append("$", "### user")\nnormal G')
+            self._append_user_prompt()
 
-    def parse_buffer(self, buffer_content):
-        messages, role, content = [], None, []
-        for line in buffer_content.splitlines():
+    def _parse_messages(self, content: str) -> List[Dict[str, str]]:
+        messages, role, lines = [], None, []
+        for line in content.splitlines():
             if line.startswith("### "):
                 if role:
                     messages.append({
                         "role": role,
-                        "content": "\n".join(content).strip()
+                        "content": "\n".join(lines).strip()
                     })
-                role, content = line[4:].lower(), []
+                role, lines = line[4:].lower(), []
             else:
-                content.append(line)
-        if role:
+                lines.append(line)
+        if role and lines:
             messages.append({
                 "role": role,
-                "content": "\n".join(content).strip()
+                "content": "\n".join(lines).strip()
             })
         return messages
 
-    def fetch_response(self, messages):
+    def _get_response(self, messages: List[Dict[str, str]]) -> str:
         system_msg = next(
             (m['content'] for m in messages if m['role'] == 'system'), None)
-        last_msg = messages[-1]['content']
-        response = self.conversation.prompt(last_msg, system=system_msg)
-        return response.text()
+        user_msg = messages[-1]['content']
+        return self.conversation.prompt(user_msg, system=system_msg).text()
 
-    def update_buffer(self, response):
+    def _update_buffer(self, response: str) -> None:
         buffer = self.vim.current.buffer
-        lines = response.split('\n')
-        buffer.append(lines, len(buffer))
+        buffer.append("### assistant")
+        buffer.append(response.split('\n'))
         self.vim.command("redraw | normal G")
 
-    def _refresh_display(self):
-        self.vim.command("redraw")
-        self.vim.command("normal G")
+    def _append_user_prompt(self) -> None:
+        self.vim.command('call append("$", "### user")\nnormal G')
+
+    def _append_error(self, error: str) -> None:
+        self.vim.command(f'call append("$", "Error: {error}")')
 
 
 def main():
-    options = json.loads(vim.eval('g:openai_options'))
-    model_name = 'claude-3.5-sonnet'  # hardcode for testing
-    chat_interface = ChatInterface(vim, model_name)
-    chat_interface.run()
+    model_name = vim.eval('get(g:llm_options, "model", "claude-3.5-sonnet")')
+    LlmInterface(vim, model_name).process_buffer()
+
 
 if __name__ == '__main__':
     main()
