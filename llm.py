@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # ==============================================================================
 # buffer interaction with llm
-# file:     chad.py
+# file:     llm.py
 # author:   shmup <https://github.com/shmup>
-# website:  https://github.com/shmup/chad.vim
+# website:  https://github.com/shmup/llm.vim
 # updated:  dec-24-2023
 # license:  :h license
 # ==============================================================================
@@ -40,7 +40,7 @@ class ChatInterface:
             self.vim.command('call append(line("$"), "### assistant")')
             self.update_buffer(response)
         except (InterruptedError, KeyboardInterrupt):
-            self.vim.command('echo "Chad cancelled"')
+            self.vim.command('echo "Llm cancelled"')
         except Exception as e:
             error_message = str(e)
             self.vim.command(f'call append("$", "Error: {error_message}")')

@@ -1,23 +1,23 @@
 vim9script
 # ==============================================================================
 # buffer interaction with openai chat completion
-# file:     autoload/chad.vim
+# file:     autoload/llm.vim
 # author:   shmup <https://github.com/shmup>
-# website:  https://github.com/shmup/chad.vim
+# website:  https://github.com/shmup/llm.vim
 # updated:  dec-24-2023
 # license:  :h license
 # ==============================================================================
 
 var plugin_root: string = expand('<sfile>:p:h:h')
-var chad_py: string = plugin_root .. "/chad.py"
+var llm_py: string = plugin_root .. "/llm.py"
 
 def LoadPluginOptions(): dict<string>
     var options: dict<string> = {
         'model': 'gpt-4',
         'temperature': '0.3'
     }
-    if exists('g:chad_options')
-        for [key, value] in items(g:chad_options)
+    if exists('g:llm_options')
+        for [key, value] in items(g:llm_options)
             if type(value) == v:t_float || type(value) == v:t_number
                 options[key] = string(value)
             elseif type(value) == v:t_string
@@ -28,37 +28,37 @@ def LoadPluginOptions(): dict<string>
     return options
 enddef
 
-export def ToggleChad()
+export def ToggleLlm()
   var filetypes = split(&filetype, '\.')
-  if index(filetypes, 'chad') >= 0
-    Chad()
+  if index(filetypes, 'llm') >= 0
+    Llm()
   else
-    StartChad()
+    StartLlm()
   endif
 enddef
 
-export def StartChad()
-  var seed: string = exists('g:chad_seed') ? g:chad_seed : 'You are helpful.'
+export def StartLlm()
+  var seed: string = exists('g:llm_seed') ? g:llm_seed : 'You are helpful.'
   enew
   setlocal buftype=nofile
   setlocal bufhidden=hide
-  setlocal filetype=markdown.chad
+  setlocal filetype=markdown.llm
   setline(1, ['### system', seed, '### user'])
   normal! Go
 enddef
 
-def Chad(): void
+def Llm(): void
   var openai_options = LoadPluginOptions()
   var options_json: string = json_encode(openai_options)
   g:openai_options = options_json
-  exe 'py3file ' .. chad_py
+  exe 'py3file ' .. llm_py
 enddef
 
-export def SaveChadToFile(filename: string): void
-  var ext: string = '.chad'
-  var target_path: string = filename .. (match(filename, '\.chad$') == -1 ? ext : '')
+export def SaveLlmToFile(filename: string): void
+  var ext: string = '.llm'
+  var target_path: string = filename .. (match(filename, '\.llm$') == -1 ? ext : '')
   writefile(getline(1, '$'), target_path)
-  echom 'Chad saved to: ' .. target_path
+  echom 'Llm saved to: ' .. target_path
 enddef
 
 export def HandleInterrupt()

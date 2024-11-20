@@ -1,19 +1,17 @@
 vim9script
 # ==============================================================================
 # buffer interaction with openai chat completion
-# file:     plugin/chad.vim
+# file:     syntax/llm.vim
 # author:   shmup <https://github.com/shmup>
-# website:  https://github.com/shmup/chad.vim
+# website:  https://github.com/shmup/llm.vim
 # updated:  dec-24-2023
 # license:  :h license
 # ==============================================================================
 
-import autoload '../autoload/chad.vim'
+syntax match system /^###\ssystem$/
+syntax match user /^###\suser$/
+syntax match assistant /^###\sassistant$/
 
-command ToggleChad chad.ToggleChad()
-command -nargs=1 SaveChad chad.SaveChadToFile(<f-args>)
-
-augroup chad
-  autocmd!
-  autocmd FileType chad nnoremap <buffer> <C-C> :HandleInterrupt<CR>
-augroup END
+hi link system Comment
+hi link user SpecialComment
+hi link assistant Todo

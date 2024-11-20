@@ -1,7 +1,7 @@
 ### OVERRIDE THE DEFAULTS
 
-    let g:chad_seed = "You are a helpful AI assistant."
-    let g:chad_options = {
+    let g:llm_seed = "You are a helpful AI assistant."
+    let g:llm_options = {
         \ 'api_key': $YOUR_EXPORTED_API_KEY,
         \ 'model': "gpt-4-1106-preview",
         \ 'temperature': 0.7,
@@ -12,8 +12,8 @@
 
 ### EXAMPLE MAPPING
 
-    " used to both open chad buffer and request response
-    nnoremap ,c :ToggleChad<CR>
+    " used to both open llm buffer and request response
+    nnoremap ,c :ToggleLlm<CR>
 
 ### REQUIREMENTS
 
@@ -30,5 +30,5 @@ https://github.com/madox2/vim-ai
 
 ---
 
-![chad](https://github.com/shmup/chad.vim/assets/118710/83918715-43e7-4d3f-8492-6a09c6ac832f)
+![llm](https://github.com/shmup/llm.vim/assets/118710/83918715-43e7-4d3f-8492-6a09c6ac832f)
 
