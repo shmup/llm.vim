@@ -1,5 +1,6 @@
 update:
-  pip install --upgrade openai
+  pip install --upgrade llm
+  llm install llm-claude-3 --upgrade
 
 last-changed:
   find . -type f ! -path '*/.git/*' -exec sed -i \
