@@ -12,25 +12,20 @@ var plugin_root: string = expand('<sfile>:p:h:h')
 var chad_py: string = plugin_root .. "/chad.py"
 
 def LoadPluginOptions(): dict<string>
-  var options: dict<string> = {
-    'api_key': string(getenv('CHAD')),
-    'model': 'gpt-4-1106-preview',
-    'temperature': '0.3',
-    'top_p': '0.5',
-    'max_tokens': '150',
-    'presence_penalty': '0.1',
-    'frequency_penalty': '0.6'
-  }
-  if exists('g:chad_options')
-    for [key, value] in items(g:chad_options)
-      if type(value) == v:t_float || type(value) == v:t_number
-        options[key] = string(value)
-      elseif type(value) == v:t_string
-        options[key] = value
-      endif
-    endfor
-  endif
-  return options
+    var options: dict<string> = {
+        'model': 'gpt-4',
+        'temperature': '0.3'
+    }
+    if exists('g:chad_options')
+        for [key, value] in items(g:chad_options)
+            if type(value) == v:t_float || type(value) == v:t_number
+                options[key] = string(value)
+            elseif type(value) == v:t_string
+                options[key] = value
+            endif
+        endfor
+    endif
+    return options
 enddef
 
 export def ToggleChad()
