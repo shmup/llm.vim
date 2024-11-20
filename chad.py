@@ -37,7 +37,7 @@ class ChatInterface:
         messages = self.parse_buffer(buffer_content)
         try:
             response = self.fetch_response(messages)
-            self.vim.command('call append("$", "### assistant")')
+            self.vim.command('call append(line("$"), "### assistant")')
             self.update_buffer(response)
         except (InterruptedError, KeyboardInterrupt):
             self.vim.command('echo "Chad cancelled"')
@@ -76,24 +76,8 @@ class ChatInterface:
     def update_buffer(self, response):
         buffer = self.vim.current.buffer
         lines = response.split('\n')
-        line_num = len(buffer) - 1
-        
-        if buffer[line_num].startswith("### "):
-            line_num += 1
-        
-        buffer[line_num:line_num] = lines
-        self._refresh_display()
-
-
-    def _update_buffer_lines(self, buffer, line_num, lines):
-        if buffer[line_num].startswith("### "):
-            line_num += 1
-            buffer[line_num:line_num] = lines
-        else:
-            buffer[line_num] += lines[0]
-            if len(lines) > 1:
-                buffer[line_num + 1:line_num + 1] = lines[1:]
-        return line_num + len(lines) - 1
+        buffer.append(lines, len(buffer))
+        self.vim.command("redraw | normal G")
 
     def _refresh_display(self):
         self.vim.command("redraw")
