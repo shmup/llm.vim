@@ -11,7 +11,7 @@ class LlmInterface:
 
     def __init__(self, vim, model_name: str):
         self.vim = vim
-        self.model = llm.get_model(model_name)
+        self.model = llm.get_model(model_name)  # pyright: ignore[reportAttributeAccessIssue]
         self.conversation = self.model.conversation()
         signal.signal(signal.SIGINT, self._handle_interrupt)
 
@@ -37,23 +37,16 @@ class LlmInterface:
         for line in content.splitlines():
             if line.startswith("### "):
                 if role:
-                    messages.append({
-                        "role": role,
-                        "content": "\n".join(lines).strip()
-                    })
+                    messages.append({"role": role, "content": "\n".join(lines).strip()})
                 role, lines = line[4:].lower(), []
             else:
                 lines.append(line)
         if role and lines:
-            messages.append({
-                "role": role,
-                "content": "\n".join(lines).strip()
-            })
+            messages.append({"role": role, "content": "\n".join(lines).strip()})
         return messages
 
     def _get_response(self, messages: List[Dict[str, str]]) -> str:
-        system_msg = next(
-            (m['content'] for m in messages if m['role'] == 'system'), None)
+        system_msg = next((m['content'] for m in messages if m['role'] == 'system'), None)
         user_msg = messages[-1]['content']
         return self.conversation.prompt(user_msg, system=system_msg).text()
 

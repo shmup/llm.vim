@@ -1,7 +1,7 @@
 vim9script
 
 const PLUGIN_ROOT = expand('<sfile>:p:h:h')
-const LLM_PY = PLUGIN_ROOT .. "/llm.py"
+const LLM_PY = PLUGIN_ROOT .. "/elelem.py"
 
 export def Toggle()
     if &filetype =~ 'llm'
