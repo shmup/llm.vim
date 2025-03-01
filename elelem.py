@@ -2,9 +2,9 @@
 # pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false
 
 import signal
-from typing import List, Dict
 import os
 import json
+from typing import List, Dict
 
 import llm
 
@@ -14,16 +14,9 @@ class LlmInterface:
     def __init__(self, vim, model_name: str):
         self.vim = vim
         self.model = llm.get_model(model_name)
-
-        # Get buffer ID to use as conversation identifier
         self.buffer_id = str(self.vim.current.buffer.number)
-
-        # Path to store conversation IDs
         self.storage_path = os.path.join(llm.user_dir(), "vim_conversations.json")
-
-        # Load or create the conversation
         self.conversation = self._get_or_create_conversation()
-
         signal.signal(signal.SIGINT, self._handle_interrupt)
 
     def _handle_interrupt(self, *_):
@@ -42,12 +35,8 @@ class LlmInterface:
 
         # Check if we have a conversation ID for this buffer
         if self.buffer_id in conversation_ids:
-            try:
-                # Try to load the existing conversation
-                return self.model.conversation(id=conversation_ids[self.buffer_id])
-            except Exception:
-                # If loading fails, create a new conversation
-                pass
+            conversation_id = conversation_ids[self.buffer_id]
+            return llm.Conversation(model=self.model, id=conversation_id)
 
         # Create a new conversation
         conversation = self.model.conversation()
@@ -63,8 +52,29 @@ class LlmInterface:
         try:
             content = self.vim.eval('join(getline(1, "$"), "\n")')
             messages = self._parse_messages(content)
-            response = self._get_response(messages)
-            self._update_buffer(response)
+
+            # Check if system message changed
+            system_msg = next((m['content'] for m in messages if m['role'] == 'system'), None)
+            if system_msg and self.conversation.responses and hasattr(self.conversation.responses[0].prompt, 'system'):
+                if self.conversation.responses[0].prompt.system != system_msg:
+                    # Create new conversation if system message changed
+                    self.conversation = self.model.conversation()
+                    conversation_ids = {}
+                    if os.path.exists(self.storage_path):
+                        with open(self.storage_path, 'r') as f:
+                            conversation_ids = json.load(f)
+                    conversation_ids[self.buffer_id] = self.conversation.id
+                    with open(self.storage_path, 'w') as f:
+                        json.dump(conversation_ids, f)
+
+            # Use the new prompt_messages method
+            self.conversation.prompt_messages(messages)
+
+            # Get the latest response
+            if self.conversation.responses:
+                response = self.conversation.responses[-1].text()
+                self._update_buffer(response)
+
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -84,20 +94,6 @@ class LlmInterface:
         if role and lines:
             messages.append({"role": role, "content": "\n".join(lines).strip()})
         return messages
-
-    def _get_response(self, messages: List[Dict[str, str]]) -> str:
-        # Extract system message if present
-        system_msg = next((m['content'] for m in messages if m['role'] == 'system'), None)
-
-        # Get the most recent user message
-        user_messages = [m for m in messages if m['role'] == 'user']
-        if not user_messages:
-            return "Error: No user message found"
-
-        user_msg = user_messages[-1]['content']
-
-        # Send the prompt to the model
-        return self.conversation.prompt(user_msg, system=system_msg).text()
 
     def _update_buffer(self, response: str) -> None:
         buffer = self.vim.current.buffer
