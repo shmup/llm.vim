@@ -1,80 +1,40 @@
 #!/usr/bin/env python3
 # pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false
 
+from anthropic import Anthropic
+from anthropic.types import MessageParam
+from anthropic.types import ContentBlock, TextBlock
+from typing import List
 import signal
-import os
-import json
-from typing import List, Dict
 
-import llm
+DEFAULT_SEED = "Be direct and concise. Maintain context. No hedging or qualifiers."
 
 
 class LlmInterface:
 
-    def __init__(self, vim, model_name: str):
+    def __init__(self, vim):
         self.vim = vim
-        self.model = llm.get_model(model_name)
-        self.buffer_id = str(self.vim.current.buffer.number)
-        self.storage_path = os.path.join(llm.user_dir(), "vim_conversations.json")
-        self.conversation = self._get_or_create_conversation()
+        self.client = Anthropic()
+        self.options = vim.eval('exists("g:llm_options") ? g:llm_options : {}')
+        self.seed = vim.eval('exists("g:llm_seed") ? g:llm_seed : ""') or DEFAULT_SEED
         signal.signal(signal.SIGINT, self._handle_interrupt)
 
     def _handle_interrupt(self, *_):
         self.vim.command('echo "Llm cancelled"')
         raise KeyboardInterrupt
 
-    def _get_or_create_conversation(self):
-        # Load existing conversation IDs
-        conversation_ids = {}
-        if os.path.exists(self.storage_path):
-            try:
-                with open(self.storage_path, 'r') as f:
-                    conversation_ids = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                pass
-
-        # Check if we have a conversation ID for this buffer
-        if self.buffer_id in conversation_ids:
-            conversation_id = conversation_ids[self.buffer_id]
-            return llm.Conversation(model=self.model, id=conversation_id)
-
-        # Create a new conversation
-        conversation = self.model.conversation()
-
-        # Save the conversation ID
-        conversation_ids[self.buffer_id] = conversation.id
-        with open(self.storage_path, 'w') as f:
-            json.dump(conversation_ids, f)
-
-        return conversation
-
-    def process_buffer(self) -> None:
+    def process_buffer(self):
         try:
             content = self.vim.eval('join(getline(1, "$"), "\n")')
             messages = self._parse_messages(content)
-
-            # Check if system message changed
-            system_msg = next((m['content'] for m in messages if m['role'] == 'system'), None)
-            if system_msg and self.conversation.responses and hasattr(self.conversation.responses[0].prompt, 'system'):
-                if self.conversation.responses[0].prompt.system != system_msg:
-                    # Create new conversation if system message changed
-                    self.conversation = self.model.conversation()
-                    conversation_ids = {}
-                    if os.path.exists(self.storage_path):
-                        with open(self.storage_path, 'r') as f:
-                            conversation_ids = json.load(f)
-                    conversation_ids[self.buffer_id] = self.conversation.id
-                    with open(self.storage_path, 'w') as f:
-                        json.dump(conversation_ids, f)
-
-            # Use the new prompt_messages method
-            self.conversation.prompt_messages(messages)
-
-            # Get the latest response
-            if self.conversation.responses:
-                response = self.conversation.responses[-1].text()
-                self._update_buffer(response)
-
+            response = self.client.messages.create(model=self.options.get('model', 'claude-3-5-sonnet-latest'),
+                                                   max_tokens=int(self.options.get('max_tokens', 2000)),
+                                                   temperature=float(self.options.get('temperature', 0.1)),
+                                                   top_p=float(self.options.get('top_p', 0.7)),
+                                                   top_k=int(self.options.get('top_k', 40)),
+                                                   system=self.seed,
+                                                   messages=messages)
+            self._update_buffer(response.content)
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -82,35 +42,46 @@ class LlmInterface:
         finally:
             self._append_user_prompt()
 
-    def _parse_messages(self, content: str) -> List[Dict[str, str]]:
-        messages, role, lines = [], None, []
+    def _parse_messages(self, content) -> List[MessageParam]:
+        messages: List[MessageParam] = []
+        role, lines = None, []
+
         for line in content.splitlines():
             if line.startswith("### "):
-                if role:
-                    messages.append({"role": role, "content": "\n".join(lines).strip()})
+                if role and lines:
+                    messages.append({
+                        "role": "user" if role == "user" else "assistant",
+                        "content": "\n".join(lines).strip()
+                    })
                 role, lines = line[4:].lower(), []
             else:
                 lines.append(line)
+
         if role and lines:
-            messages.append({"role": role, "content": "\n".join(lines).strip()})
+            messages.append({"role": "user" if role == "user" else "assistant", "content": "\n".join(lines).strip()})
+
         return messages
 
-    def _update_buffer(self, response: str) -> None:
-        buffer = self.vim.current.buffer
-        buffer.append("### assistant")
-        buffer.append(response.split('\n'))
-        self.vim.command("redraw | normal G")
+    def _update_buffer(self, content_blocks: List[ContentBlock]):
+          buffer = self.vim.current.buffer
+          buffer.append("### assistant")
+          full_response = ""
+          for block in content_blocks:
+              if isinstance(block, TextBlock):
+                  full_response += block.text
+          if full_response:
+              buffer.append(full_response.split('\n'))
+          self.vim.command("redraw | normal G")
 
-    def _append_user_prompt(self) -> None:
+    def _append_user_prompt(self):
         self.vim.command('call append("$", "### user")\nnormal G')
 
-    def _append_error(self, error: str) -> None:
+    def _append_error(self, error):
         self.vim.command(f'call append("$", "Error: {error}")')
 
 
 def main():
-    model_name = vim.eval('get(g:llm_options, "model", "claude-3.5-sonnet")')
-    LlmInterface(vim, model_name).process_buffer()
+    LlmInterface(vim).process_buffer()
 
 
 if __name__ == '__main__':
