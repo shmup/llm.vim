@@ -45,39 +45,79 @@ class LlmInterface:
 
     def process_buffer(self):
         if self.api_key_missing:
-            self.vim.command(
-                'echohl WarningMsg | echo "Please set ANTHROPIC_API_KEY environment variable" | echohl None')
+            self.vim.command('echohl WarningMsg | echo "Please set ANTHROPIC_API_KEY environment variable" | echohl None')
             return
 
+        thinking_enabled = bool(self.options.get('thinking_enabled', True))
         try:
             content = "\n".join(self.vim.current.buffer[:])
             messages = self._parse_messages(content)
-            self.vim.current.buffer.append(["### assistant", ""])
-            self.vim.command("redraw | normal G")
 
-            accumulated_text = ""
             stream_params = {
-                "model": self.options.get('model', 'claude-3-7-sonnet-20250219'),
+                "model": 'claude-3-7-sonnet-latest',
                 "max_tokens": int(self.options.get('max_tokens', 2000)),
-                "temperature": float(self.options.get('temperature', 0.1)),
-                "top_p": float(self.options.get('top_p', 0.9)),
-                "top_k": int(self.options.get('top_k', 50)),
+                "temperature": 1.0 if thinking_enabled else float(self.options.get('temperature', 0.1)),
                 "system": self.seed,
                 "messages": messages
             }
 
+            if not thinking_enabled:
+                stream_params.update({
+                    "top_p": float(self.options.get('top_p', 0.9)),
+                    "top_k": int(self.options.get('top_k', 50)),
+                })
+            else:
+                stream_params["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": int(self.options.get('thinking_budget', 1600)),
+                }
+
+            if thinking_enabled:
+                self.vim.current.buffer.append(["### thinking {{{", ""])
+
+            self.vim.current.buffer.append(["### assistant", ""])
+            self.vim.command("redraw | normal G")
+
             with self.client.messages.stream(**stream_params) as stream:
-                for text in stream.text_stream:
-                    accumulated_text += text
-                    self._update_buffer(accumulated_text)
-                    self.vim.command('redraw')
+                self._handle_stream(stream, thinking_enabled)
+
         except KeyboardInterrupt:
             pass
         except Exception as e:
             self.vim.current.buffer.append(f"Error: {str(e)}")
         finally:
+            if thinking_enabled:
+                self.vim.current.buffer.append("}}}")
             self.vim.current.buffer.append("### user")
             self.vim.command("normal G")
+
+    def _handle_stream(self, stream, thinking_enabled):
+        accumulated_thinking = ""
+        accumulated_text = ""
+
+        for event in stream:
+            if hasattr(event, 'type'):
+                if thinking_enabled and event.type == "thinking":
+                    accumulated_thinking += event.thinking
+                    self._update_thinking(accumulated_thinking)
+                elif event.type == "text":
+                    accumulated_text += event.text
+                    self._update_buffer(accumulated_text)
+            elif hasattr(stream, 'text_stream'):
+                for text in stream.text_stream:
+                    accumulated_text += text
+                    self._update_buffer(accumulated_text)
+                    self.vim.command('redraw')
+                return  # Exit if using older API style
+
+            self.vim.command('redraw')
+
+    def _update_thinking(self, text):
+        buffer = self.vim.current.buffer
+        for i in range(len(buffer) - 1, -1, -1):
+            if buffer[i] == "### thinking {{{":
+                buffer[i + 1:] = text.split('\n')
+                break
 
     def _update_buffer(self, text):
         buffer = self.vim.current.buffer
