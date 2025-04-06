@@ -30,8 +30,8 @@ class LlmInterface:
             response = self.client.messages.create(model=self.options.get('model', 'claude-3-5-sonnet-latest'),
                                                    max_tokens=int(self.options.get('max_tokens', 2000)),
                                                    temperature=float(self.options.get('temperature', 0.1)),
-                                                   top_p=float(self.options.get('top_p', 0.7)),
-                                                   top_k=int(self.options.get('top_k', 40)),
+                                                   top_p=float(self.options.get('top_p', 0.9)),
+                                                   top_k=int(self.options.get('top_k', 50)),
                                                    system=self.seed,
                                                    messages=messages)
             self._update_buffer(response.content)

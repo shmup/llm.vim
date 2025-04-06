@@ -6,7 +6,7 @@ https://llm.datasette.io/en/stable/
 
     let g:llm_seed = "You are a helpful AI assistant."
     let g:llm_options = {
-          \ 'model': 'claude-3.5-sonnet',
+          \ 'model': 'claude-3.5-sonnet-latest',
           \ 'temperature': 0.3,
           \ 'max_tokens': 1000,
           \ 'top_p': 0.7,
@@ -21,4 +21,11 @@ https://llm.datasette.io/en/stable/
 ### REQUIREMENTS
 
 - vim9
-- llm https://llm.datasette.io/en/stable/
+- python3
+- pip install anthropic
+
+set an ANTHROPIC_API_KEY environment variable
+
+https://console.anthropic.com/settings/keys
+
+
