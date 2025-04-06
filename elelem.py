@@ -14,7 +14,14 @@ class LlmInterface:
 
     def __init__(self, vim):
         self.vim = vim
-        self.client = Anthropic()
+        try:
+            self.client = Anthropic()
+            if not self.client.api_key:
+                raise ValueError("ANTHROPIC_API_KEY not set")
+        except (ValueError, Exception):
+            self.api_key_missing = True
+        else:
+            self.api_key_missing = False
         self.options = vim.eval('exists("g:llm_options") ? g:llm_options : {}')
         self.seed = vim.eval('exists("g:llm_seed") ? g:llm_seed : ""') or DEFAULT_SEED
         signal.signal(signal.SIGINT, self._handle_interrupt)
@@ -24,6 +31,9 @@ class LlmInterface:
         raise KeyboardInterrupt
 
     def process_buffer(self):
+        if self.api_key_missing:
+            self.vim.command('echohl WarningMsg | echo "Please set ANTHROPIC_API_KEY environment variable" | echohl None')
+            return
         try:
             content = self.vim.eval('join(getline(1, "$"), "\n")')
             messages = self._parse_messages(content)
