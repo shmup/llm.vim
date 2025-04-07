@@ -11,6 +11,8 @@ https://llm.datasette.io/en/stable/
           \ 'max_tokens': 1000,
           \ 'top_p': 0.7,
           \ 'top_k': 5,
+          \ 'thinking_enabled': v:false,
+          \ 'thinking_budget': 1600,
           \ }
 
 ### EXAMPLE MAPPING
