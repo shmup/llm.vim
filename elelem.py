@@ -73,10 +73,11 @@ class LlmInterface:
                 }
 
             if thinking_enabled:
-                self.vim.current.buffer.append(["### thinking {{{", ""])
-
-            self.vim.current.buffer.append(["### assistant", ""])
-            self.vim.command("redraw | normal G")
+                self.vim.current.buffer.append(["### thinking", ""])
+                self.vim.command("redraw | normal G")
+            else:
+                self.vim.current.buffer.append(["### assistant", ""])
+                self.vim.command("redraw | normal G")
 
             with self.client.messages.stream(**stream_params) as stream:
                 self._handle_stream(stream, thinking_enabled)
@@ -86,20 +87,25 @@ class LlmInterface:
         except Exception as e:
             self.vim.current.buffer.append(f"Error: {str(e)}")
         finally:
-            if thinking_enabled:
-                self.vim.current.buffer.append("}}}")
             self.vim.current.buffer.append("### user")
             self.vim.command("normal G")
 
     def _handle_stream(self, stream, thinking_enabled):
         accumulated_thinking = ""
         accumulated_text = ""
+        in_thinking_mode = thinking_enabled
 
         for event in stream:
             if hasattr(event, 'type'):
                 if thinking_enabled and event.type == "thinking":
                     accumulated_thinking += event.thinking
                     self._update_thinking(accumulated_thinking)
+                elif event.type == "content_block_start":
+                    # Transition from thinking to assistant mode
+                    if in_thinking_mode and event.content_block.type == "text":
+                        in_thinking_mode = False
+                        self.vim.current.buffer.append(["### assistant", ""])
+                        self.vim.command("redraw | normal G")
                 elif event.type == "text":
                     accumulated_text += event.text
                     self._update_buffer(accumulated_text)
@@ -115,7 +121,7 @@ class LlmInterface:
     def _update_thinking(self, text):
         buffer = self.vim.current.buffer
         for i in range(len(buffer) - 1, -1, -1):
-            if buffer[i] == "### thinking {{{":
+            if buffer[i] == "### thinking":
                 buffer[i + 1:] = text.split('\n')
                 break
 
