@@ -27,5 +27,5 @@ export def SaveToFile(filename: string): void
     const ext = '.llm'
     const target = filename .. (filename =~ '\.llm$' ? '' : ext)
     writefile(getline(1, '$'), target)
-    echom 'Llm saved to: ' .. target
+    echom 'chat saved to: ' .. target
 enddef

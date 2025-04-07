@@ -19,14 +19,13 @@ class LlmInterface:
             self.api_key_missing = True
 
         self.options = vim.eval('get(g:, "llm_options", {})')
-        self.seed = vim.eval('get(g:, "llm_seed", "")') or DEFAULT_SEED
         signal.signal(signal.SIGINT, lambda *_: self.vim.command('echo "Llm cancelled"') or exit(1))
 
     def _parse_messages(self, content) -> List[Dict[str, str]]:
         messages, role, lines = [], None, []
         for line in content.splitlines():
             if line.startswith("### "):
-                if role and lines:
+                if role and lines and role != "system":
                     messages.append({
                         "role": "user" if role == "user" else "assistant",
                         "content": "\n".join(lines).strip()
@@ -34,7 +33,7 @@ class LlmInterface:
                 role, lines = line[4:].lower(), []
             else:
                 lines.append(line)
-        if role and lines:
+        if role and lines and role != "system":  # Skip system messages
             messages.append({"role": "user" if role == "user" else "assistant", "content": "\n".join(lines).strip()})
         return messages
 
@@ -46,12 +45,29 @@ class LlmInterface:
                 break
         self.vim.command("normal G")
 
+    def _extract_system_prompt(self) -> str | None:
+        """Extract multiline system prompt from buffer if it exists, otherwise return None"""
+        buffer = self.vim.current.buffer[:]
+        system_lines = []
+        in_system = False
+
+        for _, line in enumerate(buffer):
+            if line.startswith("### system"):
+                in_system = True
+                continue
+            elif in_system and line.startswith("### "):
+                break
+            elif in_system:
+                system_lines.append(line.strip())
+
+        return "\n".join(system_lines) if system_lines else None
+
     def process_buffer(self):
         if self.api_key_missing:
             self.vim.command(
                 'echohl WarningMsg | echo "Please set ANTHROPIC_API_KEY environment variable" | echohl None')
             return
-
+        system_prompt = self._extract_system_prompt()
         thinking_enabled = bool(self.options.get('thinking_enabled', True))
         try:
             content = "\n".join(self.vim.current.buffer[:])
@@ -61,9 +77,11 @@ class LlmInterface:
                 "model": 'claude-3-7-sonnet-latest',
                 "max_tokens": int(self.options.get('max_tokens', 2000)),
                 "temperature": 1.0 if thinking_enabled else float(self.options.get('temperature', 0.1)),
-                "system": self.seed,
                 "messages": messages
             }
+
+            if system_prompt is not None:
+              stream_params["system"] = system_prompt
 
             if not thinking_enabled:
                 stream_params.update({
