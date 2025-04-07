@@ -2,9 +2,10 @@
 # pyright: reportUndefinedVariable=false, reportGeneralTypeIssues=false, reportMissingImports=false
 
 import signal
+import os
 
 plugin_root = vim.eval('PLUGIN_ROOT')
-sys.path.append(plugin_root)
+sys.path.append(os.path.join(plugin_root, 'python'))
 from provider_manager import ProviderManager
 
 
