@@ -12,12 +12,9 @@ class LlmInterface:
 
     def __init__(self, vim):
         self.vim = vim
-        self.api_key_missing = False
-
         try:
             self.client = Anthropic()
-            if not self.client.api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
+            self.api_key_missing = not self.client.api_key
         except Exception:
             self.api_key_missing = True
 
@@ -27,7 +24,6 @@ class LlmInterface:
 
     def _parse_messages(self, content) -> List[Dict[str, str]]:
         messages, role, lines = [], None, []
-
         for line in content.splitlines():
             if line.startswith("### "):
                 if role and lines:
@@ -38,14 +34,22 @@ class LlmInterface:
                 role, lines = line[4:].lower(), []
             else:
                 lines.append(line)
-
         if role and lines:
             messages.append({"role": "user" if role == "user" else "assistant", "content": "\n".join(lines).strip()})
         return messages
 
+    def _update_section(self, section_marker, text):
+        buffer = self.vim.current.buffer
+        for i in range(len(buffer) - 1, -1, -1):
+            if buffer[i] == section_marker:
+                buffer[i + 1:] = text.split('\n')
+                break
+        self.vim.command("normal G")
+
     def process_buffer(self):
         if self.api_key_missing:
-            self.vim.command('echohl WarningMsg | echo "Please set ANTHROPIC_API_KEY environment variable" | echohl None')
+            self.vim.command(
+                'echohl WarningMsg | echo "Please set ANTHROPIC_API_KEY environment variable" | echohl None')
             return
 
         thinking_enabled = bool(self.options.get('thinking_enabled', True))
@@ -72,12 +76,10 @@ class LlmInterface:
                     "budget_tokens": int(self.options.get('thinking_budget', 1600)),
                 }
 
-            if thinking_enabled:
-                self.vim.current.buffer.append(["### thinking", ""])
-                self.vim.command("redraw | normal G")
-            else:
-                self.vim.current.buffer.append(["### assistant", ""])
-                self.vim.command("redraw | normal G")
+            # Add initial section
+            section = "### thinking" if thinking_enabled else "### assistant"
+            self.vim.current.buffer.append([section, ""])
+            self.vim.command("redraw | normal G")
 
             with self.client.messages.stream(**stream_params) as stream:
                 self._handle_stream(stream, thinking_enabled)
@@ -91,47 +93,30 @@ class LlmInterface:
             self.vim.command("normal G")
 
     def _handle_stream(self, stream, thinking_enabled):
-        accumulated_thinking = ""
-        accumulated_text = ""
+        thinking_text = ""
+        assistant_text = ""
         in_thinking_mode = thinking_enabled
 
         for event in stream:
             if hasattr(event, 'type'):
                 if thinking_enabled and event.type == "thinking":
-                    accumulated_thinking += event.thinking
-                    self._update_thinking(accumulated_thinking)
-                elif event.type == "content_block_start":
-                    # Transition from thinking to assistant mode
-                    if in_thinking_mode and event.content_block.type == "text":
-                        in_thinking_mode = False
-                        self.vim.current.buffer.append(["### assistant", ""])
-                        self.vim.command("redraw | normal G")
+                    thinking_text += event.thinking
+                    self._update_section("### thinking", thinking_text)
+                elif event.type == "content_block_start" and in_thinking_mode and event.content_block.type == "text":
+                    in_thinking_mode = False
+                    self.vim.current.buffer.append(["### assistant", ""])
+                    self.vim.command("redraw | normal G")
                 elif event.type == "text":
-                    accumulated_text += event.text
-                    self._update_buffer(accumulated_text)
-            elif hasattr(stream, 'text_stream'):
+                    assistant_text += event.text
+                    self._update_section("### assistant", assistant_text)
+            elif hasattr(stream, 'text_stream'):  # Legacy API support
                 for text in stream.text_stream:
-                    accumulated_text += text
-                    self._update_buffer(accumulated_text)
+                    assistant_text += text
+                    self._update_section("### assistant", assistant_text)
                     self.vim.command('redraw')
-                return  # Exit if using older API style
+                return
 
             self.vim.command('redraw')
-
-    def _update_thinking(self, text):
-        buffer = self.vim.current.buffer
-        for i in range(len(buffer) - 1, -1, -1):
-            if buffer[i] == "### thinking":
-                buffer[i + 1:] = text.split('\n')
-                break
-
-    def _update_buffer(self, text):
-        buffer = self.vim.current.buffer
-        for i in range(len(buffer) - 1, -1, -1):
-            if buffer[i] == "### assistant":
-                buffer[i + 1:] = text.split('\n')
-                break
-        self.vim.command("normal G")
 
 
 def main():
@@ -139,5 +124,4 @@ def main():
 
 
 if __name__ == '__main__':
-
     main()
