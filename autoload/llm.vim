@@ -15,7 +15,7 @@ export def Start()
     const seed = get(g:, 'llm_seed', 'You are helpful.')
     enew
     setlocal buftype=nofile bufhidden=hide filetype=markdown.llm
-    setline(1, ['### system', seed, '### user'])
+    setline(1, ['### system', seed, "", '### user'])
     normal! G
 enddef
 

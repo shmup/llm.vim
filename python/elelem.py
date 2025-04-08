@@ -54,7 +54,7 @@ class LlmInterface:
             thinking_enabled = bool(self.options.get('thinking_enabled', True))
 
             section = "### thinking" if thinking_enabled else "### assistant"
-            self.vim.current.buffer.append([section, ""])
+            self.vim.current.buffer.append(["", section, ""])
             self.vim.command("redraw | normal G")
 
             stream = self.manager.get_stream(messages, system_prompt, self.options)
@@ -65,7 +65,7 @@ class LlmInterface:
         except Exception as e:
             self.vim.current.buffer.append(f"Error: {str(e)}")
         finally:
-            self.vim.current.buffer.append("### user")
+            self.vim.current.buffer.append(["", "### user", ""])
             self.vim.command("normal G")
 
     def _handle_stream(self, stream, thinking_enabled):
@@ -81,7 +81,7 @@ class LlmInterface:
                         self._update_section("### thinking", thinking_text)
                     elif event.type == "content_block_start" and in_thinking_mode and event.content_block.type == "text":
                         in_thinking_mode = False
-                        self.vim.current.buffer.append(["### assistant", ""])
+                        self.vim.current.buffer.append(["", "### assistant", ""])
                     elif event.type == "text":
                         assistant_text += event.text
                         self._update_section("### assistant", assistant_text)
