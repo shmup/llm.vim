@@ -11,6 +11,14 @@ export def Toggle()
     endif
 enddef
 
+export def ToggleThinking()
+    g:llm_options.thinking_enabled = !g:llm_options.thinking_enabled
+enddef
+
+export def ThinkingStatus(): string
+    return get(g:llm_options, 'thinking_enabled', v:false) ? '🧠' : ''
+enddef
+
 export def Start()
     const seed = get(g:, 'llm_seed', 'You are helpful.')
     enew
